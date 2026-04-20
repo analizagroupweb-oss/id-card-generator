@@ -380,30 +380,33 @@ body {
   position: fixed;
   left: -99999px;
   top: 0;
-  width: 210mm;
-  min-height: 297mm;
-  padding: 8mm;
+  width: 54mm;
+  padding: 0;
   background: #ffffff;
 }
 
-.pdf-sheet-grid {
+.pdf-record-export {
   display: grid;
-  grid-template-columns: repeat(3, 54mm);
-  gap: 6mm;
-  justify-content: center;
+  gap: 0;
 }
 
-.pdf-card-item {
-  display: grid;
-  gap: 4mm;
+.pdf-export-page {
+  width: 54mm;
+  height: 86mm;
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.pdf-card-item .id-card {
+.pdf-export-card {
+  width: 100%;
+  height: 100%;
   position: relative;
+  inset: auto;
+  border-radius: 0;
   box-shadow: none;
 }
 
-.pdf-card-item .card-face {
+.pdf-export-card.card-face {
   position: relative;
   inset: auto;
 }
@@ -416,6 +419,6 @@ body {
 
 @media (max-width: 768px) {
   #pdfSheet {
-    width: 210mm;
+    width: 54mm;
   }
 }

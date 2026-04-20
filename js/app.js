@@ -166,6 +166,18 @@ function setActiveTab(tabName) {
   elements.adminTab.classList.toggle("text-slate-600", isFieldTab);
   elements.adminTab.classList.toggle("ring-1", isFieldTab);
   elements.adminTab.classList.toggle("ring-slate-200", isFieldTab);
+  window.location.hash = isFieldTab ? "field" : "admin";
+}
+
+function syncTabWithHash() {
+  const hash = window.location.hash.toLowerCase();
+
+  if (hash === "#admin") {
+    setActiveTab("admin");
+    return;
+  }
+
+  setActiveTab("field");
 }
 
 function bindUiEvents() {
@@ -208,7 +220,8 @@ function bindUiEvents() {
 }
 
 bindUiEvents();
-setActiveTab("field");
+syncTabWithHash();
+window.addEventListener("hashchange", syncTabWithHash);
 
 const environmentIssue = camera.getEnvironmentIssue();
 if (environmentIssue) {

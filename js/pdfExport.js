@@ -1,3 +1,6 @@
+const PDF_PAGE_WIDTH_MM = 54;
+const PDF_PAGE_HEIGHT_MM = 86;
+
 function createPdfCardMarkup(record) {
   const photoHtml = record.photo
     ? `<img src="${record.photo}" alt="ID Photo" class="h-full w-full object-cover" />`
@@ -8,8 +11,9 @@ function createPdfCardMarkup(record) {
     : `<div class="card-signature-placeholder">Authorized Signature</div>`;
 
   return `
-    <div class="pdf-card-item">
-      <article class="id-card card-face card-front">
+    <div class="pdf-record-export">
+      <section class="pdf-export-page" data-side="front">
+        <article class="id-card card-face card-front pdf-export-card">
         <div class="card-front-shell">
           <div class="card-header-wave"></div>
           <div class="card-bottom-wave"></div>
@@ -30,8 +34,10 @@ function createPdfCardMarkup(record) {
             <div class="card-barcode-wrap"><svg class="pdf-barcode" data-value="${record.idNumber}"></svg></div>
           </div>
         </div>
-      </article>
-      <article class="id-card card-face">
+        </article>
+      </section>
+      <section class="pdf-export-page" data-side="back">
+        <article class="id-card card-face pdf-export-card">
         <div class="card-back-shell">
           <div class="card-back-top"></div>
           <div class="card-back-bottom"></div>
@@ -73,7 +79,8 @@ function createPdfCardMarkup(record) {
             </div>
           </div>
         </div>
-      </article>
+        </article>
+      </section>
     </div>
   `;
 }
@@ -90,6 +97,25 @@ function formatDisplayDate(dateValue) {
   });
 }
 
+function waitForImages(container) {
+  const images = Array.from(container.querySelectorAll("img"));
+  const pendingImages = images.filter((image) => !image.complete);
+
+  if (!pendingImages.length) {
+    return Promise.resolve();
+  }
+
+  return Promise.all(
+    pendingImages.map(
+      (image) =>
+        new Promise((resolve) => {
+          image.addEventListener("load", resolve, { once: true });
+          image.addEventListener("error", resolve, { once: true });
+        }),
+    ),
+  );
+}
+
 export async function exportRecordsToPdf(records, pdfSheetElement) {
   if (!records.length) {
     throw new Error("No records selected for export.");
@@ -100,7 +126,7 @@ export async function exportRecordsToPdf(records, pdfSheetElement) {
   }
 
   pdfSheetElement.classList.remove("hidden");
-  pdfSheetElement.innerHTML = `<div class="pdf-sheet-grid">${records.map(createPdfCardMarkup).join("")}</div>`;
+  pdfSheetElement.innerHTML = records.map(createPdfCardMarkup).join("");
 
   try {
     if (window.JsBarcode) {
@@ -118,24 +144,34 @@ export async function exportRecordsToPdf(records, pdfSheetElement) {
       });
     }
 
-    const canvas = await window.html2canvas(pdfSheetElement, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
-
-    const imageData = canvas.toDataURL("image/png");
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
-      orientation: "portrait",
       unit: "mm",
-      format: "a4",
+      format: [PDF_PAGE_WIDTH_MM, PDF_PAGE_HEIGHT_MM],
     });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    pdf.addImage(imageData, "PNG", 0, 0, pageWidth, pageHeight);
-    pdf.save(`id-sheet-${new Date().toISOString().slice(0, 10)}.pdf`);
+    const pageNodes = Array.from(pdfSheetElement.querySelectorAll(".pdf-export-page"));
+    await waitForImages(pdfSheetElement);
+
+    for (const [index, pageNode] of pageNodes.entries()) {
+      const canvas = await window.html2canvas(pageNode, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      const imageData = canvas.toDataURL("image/png");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      if (index > 0) {
+        pdf.addPage([PDF_PAGE_WIDTH_MM, PDF_PAGE_HEIGHT_MM]);
+      }
+
+      pdf.addImage(imageData, "PNG", 0, 0, pageWidth, pageHeight);
+    }
+
+    pdf.save(`id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
   } finally {
     pdfSheetElement.classList.add("hidden");
     pdfSheetElement.innerHTML = "";
