@@ -1,0 +1,421 @@
+body {
+  font-family: "Manrope", sans-serif;
+}
+
+:root {
+  --card-width: 54mm;
+  --card-height: 86mm;
+}
+
+.tab-button.is-active {
+  background: #0b3a64;
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(11, 58, 100, 0.24);
+}
+
+.preview-stage {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background:
+    radial-gradient(circle at top right, rgba(11, 58, 100, 0.08), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border-radius: 1.75rem;
+  overflow: auto;
+}
+
+.card-preview-scene {
+  perspective: 1400px;
+  width: var(--card-width);
+  height: var(--card-height);
+  flex: 0 0 auto;
+}
+
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s ease;
+}
+
+.card-preview-scene.is-flipped .card-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.id-card {
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: 4.8mm;
+  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+.card-front-shell,
+.card-back-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #0f172a;
+  background: #fff;
+}
+
+.card-header-wave {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 41%;
+  background: linear-gradient(180deg, #0b3a64 0%, #072a48 100%);
+}
+
+.card-header-wave::after {
+  content: "";
+  position: absolute;
+  left: -10%;
+  right: -6%;
+  bottom: -12mm;
+  height: 18mm;
+  background: #ffffff;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  transform: rotate(-7deg);
+}
+
+.card-header-wave::before {
+  content: "";
+  position: absolute;
+  left: -12%;
+  right: -10%;
+  bottom: -9mm;
+  height: 11mm;
+  border-top: 0.35mm solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  transform: rotate(-7deg);
+}
+
+.card-bottom-wave {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: -7mm;
+  height: 18mm;
+  background: linear-gradient(180deg, #0b3a64 0%, #072a48 100%);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+
+.card-bottom-wave::after {
+  content: "";
+  position: absolute;
+  inset: 2.6mm 6mm auto;
+  height: 0.35mm;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+}
+
+.card-company-name {
+  position: relative;
+  padding-top: 5.8mm;
+  text-align: center;
+  font-size: 2.95mm;
+  font-weight: 800;
+  letter-spacing: 0.22mm;
+  color: #fff;
+}
+
+.card-company-tagline {
+  position: relative;
+  margin-top: 1mm;
+  text-align: center;
+  font-size: 1.45mm;
+  font-weight: 600;
+  letter-spacing: 0.12mm;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.card-photo-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  margin-top: 5.5mm;
+}
+
+.card-photo-ring {
+  width: 22mm;
+  height: 22mm;
+  padding: 1.1mm;
+  border-radius: 999px;
+  background: #fff;
+  border: 0.55mm solid #0b3a64;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+
+.card-photo-ring img,
+.card-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.card-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 4mm 4mm;
+  background-position: 0 0, 0 2mm, 2mm -2mm, -2mm 0;
+  font-size: 2.2mm;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.card-front-body {
+  position: relative;
+  z-index: 1;
+  margin-top: 4.4mm;
+  padding: 0 5.2mm;
+  text-align: center;
+}
+
+.card-name {
+  font-size: 4.5mm;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.05mm;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.card-designation {
+  margin-top: 1.25mm;
+  font-size: 2.3mm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2mm;
+  color: #475569;
+}
+
+.card-front-meta {
+  margin-top: 5mm;
+  display: grid;
+  gap: 1.3mm;
+  text-align: left;
+}
+
+.card-meta-row {
+  display: grid;
+  grid-template-columns: 9mm 1fr;
+  gap: 2mm;
+  align-items: center;
+}
+
+.card-meta-row span {
+  font-size: 1.7mm;
+  font-weight: 700;
+  letter-spacing: 0.13mm;
+  color: #64748b;
+}
+
+.card-meta-row strong {
+  font-size: 1.95mm;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.card-barcode-wrap {
+  position: absolute;
+  left: 5mm;
+  right: 5mm;
+  bottom: 4.6mm;
+  height: 13.5mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.card-barcode-wrap svg {
+  width: 100%;
+  height: 100%;
+}
+
+.card-back-top {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 16%;
+  background: linear-gradient(180deg, rgba(11, 58, 100, 0.06) 0%, rgba(11, 58, 100, 0) 100%);
+}
+
+.card-back-bottom {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -7mm;
+  height: 26mm;
+  background: linear-gradient(180deg, #0b3a64 0%, #072a48 100%);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+
+.card-back-bottom::after {
+  content: "";
+  position: absolute;
+  left: 7mm;
+  right: 7mm;
+  top: 4mm;
+  height: 0.35mm;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.card-back-body {
+  position: relative;
+  z-index: 1;
+  padding: 6mm 5.4mm 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-back-title {
+  text-align: center;
+  font-size: 2.8mm;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.card-terms {
+  margin-top: 4.3mm;
+  padding-left: 3.6mm;
+  display: grid;
+  gap: 2.1mm;
+  font-size: 1.6mm;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.card-back-grid {
+  margin-top: 5.2mm;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm;
+}
+
+.card-back-label {
+  font-size: 1.45mm;
+  font-weight: 800;
+  letter-spacing: 0.16mm;
+  color: #64748b;
+}
+
+.card-back-value {
+  margin-top: 1.2mm;
+  font-size: 2.05mm;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.card-back-dates {
+  margin-top: 5mm;
+}
+
+.card-signature-block {
+  margin-top: auto;
+  text-align: center;
+  padding-bottom: 11.4mm;
+}
+
+.card-signature-placeholder {
+  height: 10mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8mm;
+  color: #94a3b8;
+}
+
+.card-sign-line {
+  margin: 1.5mm auto 0;
+  width: 23mm;
+  height: 0.35mm;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.card-sign-label {
+  margin-top: 1.2mm;
+  font-size: 1.65mm;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.card-back-company {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5.4mm;
+}
+
+#toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+#pdfSheet {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 8mm;
+  background: #ffffff;
+}
+
+.pdf-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 54mm);
+  gap: 6mm;
+  justify-content: center;
+}
+
+.pdf-card-item {
+  display: grid;
+  gap: 4mm;
+}
+
+.pdf-card-item .id-card {
+  position: relative;
+  box-shadow: none;
+}
+
+.pdf-card-item .card-face {
+  position: relative;
+  inset: auto;
+}
+
+@media (max-width: 1279px) {
+  .preview-stage {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  #pdfSheet {
+    width: 210mm;
+  }
+}
