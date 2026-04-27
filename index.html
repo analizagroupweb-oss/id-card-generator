@@ -24,6 +24,11 @@
         },
       };
     </script>
+    <style>
+      body[data-app-ready="false"] main {
+        visibility: hidden;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,65 +37,79 @@
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="min-h-screen bg-slate-100 text-slate-900">
+  <body data-app-ready="false" class="min-h-screen bg-slate-100 text-slate-900">
     <div class="relative overflow-hidden">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(11,58,100,0.16),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(244,239,232,0.8),_transparent_35%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f7_100%)]"></div>
-      <main class="relative mx-auto max-w-[1500px] px-4 py-6 sm:px-6 xl:px-8">
-        <header class="mb-6 flex flex-col gap-4 rounded-[2rem] border border-white/70 bg-white/75 p-6 shadow-panel backdrop-blur">
+      <main class="relative mx-auto max-w-[1500px] px-3 py-4 sm:px-6 sm:py-6 xl:px-8">
+        <header class="mb-5 flex flex-col gap-4 rounded-[1.75rem] border border-white/70 bg-white/75 p-4 shadow-panel backdrop-blur sm:mb-6 sm:rounded-[2rem] sm:p-6">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p class="text-xs font-extrabold uppercase tracking-[0.35em] text-navy-700">Security Identity Suite</p>
-              <h1 class="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+              <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
                 Web-Based ID Card Generator
               </h1>
-              <p class="mt-3 max-w-3xl text-sm text-slate-600 sm:text-base">
-                Field officers can capture and generate cards in real time, while admins manage numbering,
+              <p class="mt-3 max-w-3xl text-sm text-slate-600">
+                Staff can capture and generate cards in real time, while admins manage numbering,
                 signatures, reports, search, and PDF export from the same browser-only system.
               </p>
             </div>
-            <div class="grid gap-3 sm:grid-cols-2">
-              <article class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Storage</p>
-                <p class="mt-1 text-sm font-semibold text-slate-800">Local demo mode</p>
-              </article>
-              <article class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Card Size</p>
-                <p class="mt-1 text-sm font-semibold text-slate-800">54mm x 86mm portrait</p>
-              </article>
+            <div class="flex flex-col gap-3 lg:items-end">
+              <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                <div id="userInfo" class="rounded-full bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-white">
+                  Checking session...
+                </div>
+                <button
+                  id="headerLogoutBtn"
+                  type="button"
+                  class="hidden rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  Logout
+                </button>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <article class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Storage</p>
+                  <p class="mt-1 text-sm font-semibold text-slate-800">Local demo mode</p>
+                </article>
+                <article class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Card Size</p>
+                  <p class="mt-1 text-sm font-semibold text-slate-800">54mm x 86mm portrait</p>
+                </article>
+              </div>
             </div>
           </div>
 
-          <nav class="flex flex-wrap gap-3">
+          <nav class="grid gap-3 sm:flex sm:flex-wrap">
             <button
               id="fieldOfficerTab"
               type="button"
               data-tab="field"
-              class="tab-button rounded-full bg-navy-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md"
+              class="tab-button rounded-full bg-navy-700 px-5 py-3 text-sm font-semibold text-white shadow-md"
             >
-              Field Officer
+              Staff
             </button>
             <button
               id="adminTab"
               type="button"
               data-tab="admin"
-              class="tab-button rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 ring-1 ring-slate-200"
+              class="tab-button rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-600 ring-1 ring-slate-200"
             >
               Admin Dashboard
             </button>
           </nav>
         </header>
 
-        <section id="fieldSection" class="tab-section space-y-6">
+        <section id="fieldSection" class="tab-section hidden space-y-6">
           <div class="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
             <div class="space-y-6">
-              <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
+              <section class="rounded-[1.75rem] border border-white/70 bg-white p-4 shadow-panel sm:rounded-[2rem] sm:p-6">
                 <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Field Officer Module</p>
-                    <h2 class="mt-2 text-2xl font-bold text-slate-950">Capture & Identity Details</h2>
+                    <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Staff Module</p>
+                    <h2 class="mt-2 text-xl font-bold text-slate-950 sm:text-2xl">Capture & Identity Details</h2>
                     <p class="mt-2 text-sm text-slate-500">Only core fields are editable. Issue date, validity, and ID number are generated automatically.</p>
                   </div>
-                  <div class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
+                  <div class="rounded-full bg-slate-100 px-4 py-2 text-center text-sm font-semibold text-slate-600">
                     Camera: <span id="cameraStatus">Idle</span>
                   </div>
                 </div>
@@ -98,9 +117,9 @@
                 <div class="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
                   <div class="space-y-4">
                     <div class="overflow-hidden rounded-[1.5rem] bg-slate-950">
-                      <video id="cameraFeed" autoplay playsinline muted class="h-80 w-full object-cover"></video>
+                      <video id="cameraFeed" autoplay playsinline muted class="h-64 w-full object-cover sm:h-72 lg:h-80"></video>
                     </div>
-                    <div class="flex flex-wrap gap-3">
+                    <div class="grid gap-3 sm:grid-cols-2">
                       <button
                         id="startCameraBtn"
                         type="button"
@@ -115,6 +134,20 @@
                       >
                         Capture Photo
                       </button>
+                      <button
+                        id="flipCameraBtn"
+                        type="button"
+                        class="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                      >
+                        Flip Camera
+                      </button>
+                      <button
+                        id="dummyPhotoBtn"
+                        type="button"
+                        class="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+                      >
+                        Use Dummy Photo
+                      </button>
                     </div>
                   </div>
 
@@ -124,7 +157,7 @@
                         <p class="text-sm font-semibold text-slate-700">Captured Photo</p>
                         <span class="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">Preview</span>
                       </div>
-                      <div class="flex h-80 items-center justify-center overflow-hidden rounded-[1.25rem] bg-white">
+                      <div class="flex h-64 items-center justify-center overflow-hidden rounded-[1.25rem] bg-white sm:h-72 lg:h-80">
                         <img id="capturedPreview" alt="Captured officer preview" class="hidden h-full w-full object-cover" />
                         <p id="capturePlaceholder" class="max-w-xs px-5 text-center text-sm text-slate-400">
                           Start the camera and capture a centered portrait photo for the card.
@@ -200,18 +233,18 @@
                   </article>
                 </div>
 
-                <div class="mt-6 flex flex-wrap gap-3">
+                <div class="mt-6 grid gap-3 sm:grid-cols-2">
                   <button
                     id="generateBtn"
                     type="button"
-                    class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    class="rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
                   >
                     Generate ID
                   </button>
                   <button
                     id="flipCardBtn"
                     type="button"
-                    class="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    class="rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     Flip Card Preview
                   </button>
@@ -220,13 +253,13 @@
             </div>
 
             <aside class="space-y-6">
-              <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
-                <div class="mb-4 flex items-center justify-between">
+              <section class="rounded-[1.75rem] border border-white/70 bg-white p-4 shadow-panel sm:rounded-[2rem] sm:p-6">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Real-Time Preview</p>
-                    <h2 class="mt-2 text-2xl font-bold text-slate-950">Front & Back Card</h2>
+                    <h2 class="mt-2 text-xl font-bold text-slate-950 sm:text-2xl">Front & Back Card</h2>
                   </div>
-                  <span class="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                  <span class="inline-flex w-fit rounded-full bg-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
                     54mm x 86mm
                   </span>
                 </div>
@@ -336,33 +369,218 @@
         </section>
 
         <section id="adminSection" class="tab-section hidden space-y-6">
-          <div class="grid gap-6 xl:grid-cols-[0.74fr_1.26fr]">
-            <div class="space-y-6">
-              <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
-                <div class="mb-4">
-                  <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Monthly Report</p>
-                  <h2 class="mt-2 text-2xl font-bold text-slate-950">Generation Summary</h2>
-                </div>
+          <div
+            id="adminSessionBar"
+            class="hidden items-center justify-between gap-3 rounded-[1.25rem] border border-white/70 bg-white px-4 py-3 shadow-panel"
+          >
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Admin Session</p>
+              <p id="adminUserEmail" class="truncate text-sm font-semibold text-slate-800">Not signed in</p>
+            </div>
+            <button
+              id="adminLogoutBtn"
+              type="button"
+              class="shrink-0 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
+            >
+              Logout
+            </button>
+          </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                  <article class="rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200">
-                    <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Total IDs Generated</p>
-                    <p id="totalIdsStat" class="mt-3 text-3xl font-extrabold text-slate-950">0</p>
-                  </article>
-                  <article class="rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200">
-                    <label class="block text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Filter Month</label>
+          <section class="rounded-[1.75rem] border border-white/70 bg-white px-4 py-4 shadow-panel">
+            <div class="mb-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Monthly Report</p>
+                <h2 class="mt-1 text-lg font-bold text-slate-950">Generation Summary</h2>
+              </div>
+            </div>
+
+            <div class="grid gap-3 lg:grid-cols-[0.65fr_1.35fr]">
+              <article class="rounded-[1.1rem] bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Total IDs Generated</p>
+                <p id="totalIdsStat" class="mt-2 text-2xl font-extrabold leading-none text-slate-950">0</p>
+              </article>
+              <article class="rounded-[1.1rem] bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
+                <div class="grid gap-2 lg:grid-cols-[170px_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-center">
+                  <label class="block">
+                    <span class="block text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Filter Type</span>
+                    <select
+                      id="reportFilterType"
+                      class="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-navy-700"
+                    >
+                      <option value="all">All Records</option>
+                      <option value="month">Month Wise</option>
+                      <option value="day">Day Wise</option>
+                    </select>
+                  </label>
+                  <label class="block">
+                    <span class="block text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Month</span>
                     <input
                       id="reportMonthInput"
                       type="month"
-                      class="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-navy-700"
+                      class="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-navy-700"
                     />
-                    <p class="mt-3 text-sm text-slate-500">
-                      Matching records: <span id="monthlyCount" class="font-bold text-slate-900">0</span>
-                    </p>
-                  </article>
+                  </label>
+                  <label class="block">
+                    <span class="block text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Day</span>
+                    <input
+                      id="reportDayInput"
+                      type="date"
+                      class="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-navy-700"
+                    />
+                  </label>
+                  <p class="text-sm text-slate-500 lg:pt-5 lg:whitespace-nowrap">
+                    Matching records: <span id="monthlyCount" class="font-bold text-slate-900">0</span>
+                  </p>
+                </div>
+                <p id="reportFilterHint" class="mt-2 text-xs text-slate-400">Choose all records, a month, or a single day for the report.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
+            <div class="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Admin Dashboard</p>
+                <h2 class="mt-2 text-2xl font-bold text-slate-950">Generated ID Records</h2>
+              </div>
+              <div class="grid w-full gap-3 xl:w-auto xl:grid-cols-[320px_auto_auto]">
+                <input
+                  id="searchInput"
+                  type="text"
+                  placeholder="Search by name or ID number"
+                  class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+                />
+                <button
+                  id="exportReportBtn"
+                  type="button"
+                  class="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Export Report PDF
+                </button>
+                <button
+                  id="exportSelectedBtn"
+                  type="button"
+                  class="rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+                >
+                  Export Selected PDF
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-[1.5rem] border border-slate-200 bg-white">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/90">
+                  <tr class="text-left text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                    <th class="px-4 py-3">
+                      <input id="selectAllCheckbox" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-navy-700 focus:ring-navy-700" />
+                    </th>
+                    <th class="px-4 py-3">Name</th>
+                    <th class="px-4 py-3">ID Number</th>
+                    <th class="px-4 py-3">Designation</th>
+                    <th class="px-4 py-3">Created By</th>
+                    <th class="px-4 py-3">Date Created</th>
+                    <th class="px-4 py-3">Print Status</th>
+                    <th class="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="recordsTableBody" class="divide-y divide-slate-100 bg-white">
+                  <tr>
+                    <td colspan="8" class="px-4 py-8 text-center text-sm text-slate-400">
+                      No IDs generated yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
+            <div class="space-y-6">
+              <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
+                <div class="mb-4">
+                  <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Staff Management</p>
+                  <h2 class="mt-2 text-2xl font-bold text-slate-950">Add & Manage Team Access</h2>
+                  <p class="mt-2 text-sm text-slate-500">
+                    Create Firestore user records for staff and admin accounts. These entries will be used for role-based login.
+                  </p>
+                </div>
+
+                <form id="staffForm" class="grid gap-4 md:grid-cols-2">
+                  <label class="space-y-2 md:col-span-2">
+                    <span class="text-sm font-semibold text-slate-700">Name</span>
+                    <input
+                      id="staffNameInput"
+                      type="text"
+                      placeholder="Enter full name"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+                    />
+                  </label>
+
+                  <label class="space-y-2">
+                    <span class="text-sm font-semibold text-slate-700">Email</span>
+                    <input
+                      id="staffEmailInput"
+                      type="email"
+                      placeholder="staff@company.com"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+                    />
+                  </label>
+
+                  <label class="space-y-2">
+                    <span class="text-sm font-semibold text-slate-700">Password</span>
+                    <input
+                      id="staffPasswordInput"
+                      type="password"
+                      placeholder="Create temporary password"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+                    />
+                  </label>
+
+                  <label class="space-y-2 md:col-span-2">
+                    <span class="text-sm font-semibold text-slate-700">Role</span>
+                    <select
+                      id="staffRoleInput"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+                    >
+                      <option value="staff">Staff</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+
+                  <div class="md:col-span-2">
+                    <button
+                      id="addStaffBtn"
+                      type="submit"
+                      class="rounded-xl bg-navy-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-800"
+                    >
+                      Add Staff
+                    </button>
+                  </div>
+                </form>
+
+                <div class="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200">
+                  <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                      <tr class="text-left text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                        <th class="px-4 py-3">Name</th>
+                        <th class="px-4 py-3">Email</th>
+                        <th class="px-4 py-3">Role</th>
+                        <th class="px-4 py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="staffTableBody" class="divide-y divide-slate-100 bg-white">
+                      <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-400">
+                          No staff records found.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </section>
+            </div>
 
+            <div class="space-y-6">
               <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
                 <div class="mb-4">
                   <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Admin Settings</p>
@@ -418,55 +636,6 @@
                 </div>
               </section>
             </div>
-
-            <div class="space-y-6">
-              <section class="rounded-[2rem] border border-white/70 bg-white p-6 shadow-panel">
-                <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                  <div>
-                    <p class="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Admin Dashboard</p>
-                    <h2 class="mt-2 text-2xl font-bold text-slate-950">Generated ID Records</h2>
-                  </div>
-                  <div class="flex flex-wrap gap-3">
-                    <input
-                      id="searchInput"
-                      type="text"
-                      placeholder="Search by name or ID number"
-                      class="w-72 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
-                    />
-                    <button
-                      id="exportSelectedBtn"
-                      type="button"
-                      class="rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
-                    >
-                      Export Selected PDF
-                    </button>
-                  </div>
-                </div>
-
-                <div class="overflow-hidden rounded-[1.5rem] border border-slate-200">
-                  <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
-                      <tr class="text-left text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                        <th class="px-4 py-3">
-                          <input id="selectAllCheckbox" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-navy-700 focus:ring-navy-700" />
-                        </th>
-                        <th class="px-4 py-3">Name</th>
-                        <th class="px-4 py-3">ID Number</th>
-                        <th class="px-4 py-3">Designation</th>
-                        <th class="px-4 py-3">Date Created</th>
-                      </tr>
-                    </thead>
-                    <tbody id="recordsTableBody" class="divide-y divide-slate-100 bg-white">
-                      <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-sm text-slate-400">
-                          No IDs generated yet.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
           </div>
         </section>
       </main>
@@ -479,6 +648,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script type="module" src="./js/app.js"></script>
   </body>

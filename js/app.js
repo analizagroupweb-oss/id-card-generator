@@ -1,17 +1,41 @@
 import { createCameraController } from "./camera.js";
 import { createIdGenerator } from "./idGenerator.js";
 import { createAdminController } from "./admin.js";
-import { exportRecordsToPdf } from "./pdfExport.js";
+import { exportRecordsToPdf, exportReportPdf } from "./pdfExport.js";
+import {
+  getRouteForRole,
+  getSessionUser,
+  getUserProfileByUid,
+  isAdminUser,
+  isFirebaseConfigured,
+  isStaffUser,
+  logoutCurrentUser,
+  observeAuthState,
+} from "./auth.js";
 
 const elements = {
   fieldOfficerTab: document.getElementById("fieldOfficerTab"),
   adminTab: document.getElementById("adminTab"),
   fieldSection: document.getElementById("fieldSection"),
   adminSection: document.getElementById("adminSection"),
+  adminSessionBar: document.getElementById("adminSessionBar"),
+  adminUserEmail: document.getElementById("adminUserEmail"),
+  adminLogoutBtn: document.getElementById("adminLogoutBtn"),
+  headerUserInfo: document.getElementById("userInfo"),
+  headerLogoutBtn: document.getElementById("headerLogoutBtn"),
+  staffForm: document.getElementById("staffForm"),
+  staffNameInput: document.getElementById("staffNameInput"),
+  staffEmailInput: document.getElementById("staffEmailInput"),
+  staffPasswordInput: document.getElementById("staffPasswordInput"),
+  staffRoleInput: document.getElementById("staffRoleInput"),
+  addStaffBtn: document.getElementById("addStaffBtn"),
+  staffTableBody: document.getElementById("staffTableBody"),
   cameraFeed: document.getElementById("cameraFeed"),
   cameraStatus: document.getElementById("cameraStatus"),
   startCameraBtn: document.getElementById("startCameraBtn"),
   captureBtn: document.getElementById("captureBtn"),
+  flipCameraBtn: document.getElementById("flipCameraBtn"),
+  dummyPhotoBtn: document.getElementById("dummyPhotoBtn"),
   captureCanvas: document.getElementById("captureCanvas"),
   capturedPreview: document.getElementById("capturedPreview"),
   capturePlaceholder: document.getElementById("capturePlaceholder"),
@@ -43,7 +67,10 @@ const elements = {
   cardSignaturePlaceholder: document.getElementById("cardSignaturePlaceholder"),
   toast: document.getElementById("toast"),
   recordsTableBody: document.getElementById("recordsTableBody"),
+  reportFilterType: document.getElementById("reportFilterType"),
   reportMonthInput: document.getElementById("reportMonthInput"),
+  reportDayInput: document.getElementById("reportDayInput"),
+  reportFilterHint: document.getElementById("reportFilterHint"),
   monthlyCount: document.getElementById("monthlyCount"),
   totalIdsStat: document.getElementById("totalIdsStat"),
   prefixInput: document.getElementById("prefixInput"),
@@ -54,6 +81,7 @@ const elements = {
   signaturePlaceholder: document.getElementById("signaturePlaceholder"),
   searchInput: document.getElementById("searchInput"),
   exportSelectedBtn: document.getElementById("exportSelectedBtn"),
+  exportReportBtn: document.getElementById("exportReportBtn"),
   selectAllCheckbox: document.getElementById("selectAllCheckbox"),
   pdfSheet: document.getElementById("pdfSheet"),
 };
@@ -112,7 +140,10 @@ const admin = createAdminController({
   generator,
   elements: {
     recordsTableBody: elements.recordsTableBody,
+    reportFilterType: elements.reportFilterType,
     reportMonthInput: elements.reportMonthInput,
+    reportDayInput: elements.reportDayInput,
+    reportFilterHint: elements.reportFilterHint,
     monthlyCount: elements.monthlyCount,
     totalIdsStat: elements.totalIdsStat,
     prefixInput: elements.prefixInput,
@@ -123,7 +154,15 @@ const admin = createAdminController({
     signaturePlaceholder: elements.signaturePlaceholder,
     searchInput: elements.searchInput,
     exportSelectedBtn: elements.exportSelectedBtn,
+    exportReportBtn: elements.exportReportBtn,
     selectAllCheckbox: elements.selectAllCheckbox,
+    staffForm: elements.staffForm,
+    staffNameInput: elements.staffNameInput,
+    staffEmailInput: elements.staffEmailInput,
+    staffPasswordInput: elements.staffPasswordInput,
+    staffRoleInput: elements.staffRoleInput,
+    addStaffBtn: elements.addStaffBtn,
+    staffTableBody: elements.staffTableBody,
   },
   onExportSelected: async (records) => {
     if (!records.length) {
@@ -140,9 +179,28 @@ const admin = createAdminController({
       generator.showToast(error.message || "PDF export failed.", "error");
     }
   },
+  onExportReport: async (records, options) => {
+    if (!records.length) {
+      generator.showToast("No ID records match the current report filters.", "error");
+      return;
+    }
+
+    try {
+      generator.showToast("Preparing report PDF...", "info");
+      exportReportPdf(records, options);
+      generator.showToast("Report PDF exported successfully.", "success");
+    } catch (error) {
+      console.error("Report PDF export failed:", error);
+      generator.showToast(error.message || "Report PDF export failed.", "error");
+    }
+  },
 });
 
-generator.initialize();
+let currentAuthUser = null;
+let currentUserProfile = null;
+let authReady = false;
+const initialSessionUser = getSessionUser();
+let appReady = false;
 
 function handleRecordsChange(records) {
   admin.updateRecords(records);
@@ -150,6 +208,56 @@ function handleRecordsChange(records) {
 
 function handleSignatureChange(signatureDataUrl) {
   admin.setSignaturePreview(signatureDataUrl);
+}
+
+function redirectToLogin() {
+  document.body.dataset.appReady = "false";
+  window.location.replace("./login.html");
+}
+
+function markAppReady() {
+  if (appReady) {
+    return;
+  }
+
+  document.body.dataset.appReady = "true";
+  appReady = true;
+}
+
+function requireSessionUser() {
+  const sessionUser = getSessionUser();
+
+  if (!sessionUser?.uid) {
+    redirectToLogin();
+    return null;
+  }
+
+  return sessionUser;
+}
+
+function updateAdminSessionUi() {
+  const hasAdminAccess = isAdminUser(currentUserProfile);
+  const sessionUser = getSessionUser();
+  const displayName = sessionUser?.name || currentUserProfile?.name || "User";
+  const displayRole = sessionUser?.role || currentUserProfile?.role || "";
+
+  elements.adminSessionBar.classList.toggle("hidden", !hasAdminAccess);
+  elements.adminSessionBar.classList.toggle("flex", hasAdminAccess);
+  elements.adminUserEmail.textContent = hasAdminAccess
+    ? `${displayName} (${displayRole || "admin"})${currentAuthUser?.email ? ` - ${currentAuthUser.email}` : ""}`
+    : "Not signed in";
+  elements.headerUserInfo.textContent = sessionUser?.uid
+    ? `${displayName} (${displayRole || "user"})`
+    : "No active session";
+  elements.headerLogoutBtn.classList.toggle("hidden", !sessionUser?.uid);
+}
+
+function applyRoleAccess() {
+  const isAdmin = isAdminUser(currentUserProfile);
+  const isStaff = isStaffUser(currentUserProfile);
+
+  elements.fieldOfficerTab.classList.toggle("hidden", isAdmin);
+  elements.adminTab.classList.toggle("hidden", isStaff);
 }
 
 function setActiveTab(tabName) {
@@ -169,10 +277,41 @@ function setActiveTab(tabName) {
   window.location.hash = isFieldTab ? "field" : "admin";
 }
 
-function syncTabWithHash() {
+async function openAdminArea() {
+  if (!isFirebaseConfigured()) {
+    generator.showToast("Firebase config is missing. Update js/auth.js before using admin login.", "error");
+    return;
+  }
+
+  if (!isAdminUser(currentUserProfile)) {
+    setActiveTab("field");
+    return;
+  }
+
+  await admin.refreshDashboardData();
+  setActiveTab("admin");
+}
+
+async function syncTabWithHash() {
   const hash = window.location.hash.toLowerCase();
 
   if (hash === "#admin") {
+    if (!authReady) {
+      if (initialSessionUser?.uid && initialSessionUser?.role === "admin") {
+        setActiveTab("admin");
+        return;
+      }
+
+      setActiveTab("field");
+      return;
+    }
+
+    if (!isAdminUser(currentUserProfile)) {
+      setActiveTab("field");
+      return;
+    }
+
+    await admin.refreshDashboardData();
     setActiveTab("admin");
     return;
   }
@@ -180,9 +319,46 @@ function syncTabWithHash() {
   setActiveTab("field");
 }
 
+function applyInitialSessionView() {
+  const hash = window.location.hash.toLowerCase();
+
+  if (hash === "#admin" && initialSessionUser?.uid && initialSessionUser?.role === "admin") {
+    setActiveTab("admin");
+    return;
+  }
+
+  setActiveTab("field");
+}
+
+function createDummyPhotoDataUrl() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0b3a64" />
+          <stop offset="100%" stop-color="#2563eb" />
+        </linearGradient>
+      </defs>
+      <rect width="480" height="640" fill="url(#bg)" />
+      <circle cx="240" cy="220" r="92" fill="#f8fafc" fill-opacity="0.95" />
+      <path d="M104 548c18-106 96-162 136-162s118 56 136 162" fill="#f8fafc" fill-opacity="0.95" />
+      <text x="240" y="84" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff">
+        TEST PHOTO
+      </text>
+      <text x="240" y="602" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="#dbeafe">
+        No camera connected
+      </text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 function bindUiEvents() {
   elements.fieldOfficerTab.addEventListener("click", () => setActiveTab("field"));
-  elements.adminTab.addEventListener("click", () => setActiveTab("admin"));
+  elements.adminTab.addEventListener("click", () => {
+    openAdminArea();
+  });
 
   elements.startCameraBtn.addEventListener("click", async () => {
     const result = await camera.start();
@@ -206,24 +382,130 @@ function bindUiEvents() {
     generator.showToast("Photo captured successfully.", "success");
   });
 
-  elements.generateBtn.addEventListener("click", () => {
-    const record = generator.generateRecord();
+  elements.flipCameraBtn.addEventListener("click", async () => {
+    const result = await camera.flipCamera();
 
-    if (record) {
-      setActiveTab("admin");
+    if (!result.ok) {
+      generator.showToast(result.message, "error");
+      return;
+    }
+
+    generator.showToast(`Switched to ${result.facingLabel} camera.`, "success");
+  });
+
+  elements.dummyPhotoBtn.addEventListener("click", () => {
+    generator.setCapturedPhoto(createDummyPhotoDataUrl());
+    elements.cameraStatus.textContent = "Test Mode";
+    generator.showToast("Dummy photo loaded. You can continue generating the ID card.", "success");
+  });
+
+  elements.generateBtn.addEventListener("click", async () => {
+    elements.generateBtn.disabled = true;
+    const originalLabel = elements.generateBtn.textContent;
+    elements.generateBtn.textContent = "Generating...";
+
+    let record = null;
+
+    try {
+      record = await generator.generateRecord();
+    } catch (error) {
+      console.error("Generate ID failed:", error);
+      generator.showToast(error.message || "Generate ID failed.", "error");
+    } finally {
+      elements.generateBtn.disabled = false;
+      elements.generateBtn.textContent = originalLabel;
+    }
+
+    if (record && isAdminUser(currentUserProfile)) {
+      await openAdminArea();
     }
   });
 
   elements.flipCardBtn.addEventListener("click", () => {
     elements.cardPreview.classList.toggle("is-flipped");
   });
+
+  elements.adminLogoutBtn.addEventListener("click", async () => {
+    try {
+      document.body.dataset.appReady = "false";
+      await logoutCurrentUser();
+      currentAuthUser = null;
+      currentUserProfile = null;
+      updateAdminSessionUi();
+      applyRoleAccess();
+      window.location.replace("./login.html");
+    } catch (error) {
+      generator.showToast(error.message || "Logout failed.", "error");
+    }
+  });
+
+  elements.headerLogoutBtn.addEventListener("click", async () => {
+    try {
+      document.body.dataset.appReady = "false";
+      await logoutCurrentUser();
+      currentAuthUser = null;
+      currentUserProfile = null;
+      updateAdminSessionUi();
+      applyRoleAccess();
+      redirectToLogin();
+    } catch (error) {
+      generator.showToast(error.message || "Logout failed.", "error");
+    }
+  });
 }
 
 bindUiEvents();
-syncTabWithHash();
 window.addEventListener("hashchange", syncTabWithHash);
+applyInitialSessionView();
 
 const environmentIssue = camera.getEnvironmentIssue();
 if (environmentIssue) {
   generator.showToast(environmentIssue.message, "info");
+}
+
+generator.initialize();
+
+if (!requireSessionUser()) {
+  updateAdminSessionUi();
+}
+
+if (!isFirebaseConfigured()) {
+  authReady = true;
+  updateAdminSessionUi();
+  syncTabWithHash();
+  markAppReady();
+} else {
+  observeAuthState(async (user) => {
+    if (!user) {
+      currentAuthUser = null;
+      currentUserProfile = null;
+      authReady = true;
+      updateAdminSessionUi();
+      applyRoleAccess();
+      redirectToLogin();
+      return;
+    }
+
+    try {
+      const profile = await getUserProfileByUid(user.uid, { forceRefresh: true });
+      currentAuthUser = user;
+      currentUserProfile = profile;
+      authReady = true;
+      updateAdminSessionUi();
+      applyRoleAccess();
+
+      if (profile.role === "admin") {
+        window.location.hash = "admin";
+      } else if (!window.location.hash || window.location.hash.toLowerCase() === "#admin") {
+        window.location.hash = "field";
+      }
+
+      await syncTabWithHash();
+      markAppReady();
+    } catch (error) {
+      console.error("User role lookup failed:", error);
+      await logoutCurrentUser();
+      redirectToLogin();
+    }
+  });
 }

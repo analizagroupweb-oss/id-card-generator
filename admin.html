@@ -2,14 +2,127 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=./index.html#admin" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Portal Redirect</title>
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      window.location.replace("./index.html#admin");
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              navy: {
+                700: "#0b3a64",
+                800: "#082b4d",
+              },
+            },
+          },
+        },
+      };
     </script>
   </head>
-  <body>
-    <p>Redirecting to the admin portal...</p>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(11,58,100,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.95),_transparent_34%),linear-gradient(180deg,_#f8fafc_0%,_#e9eef5_100%)]"></div>
+
+      <main class="relative w-full max-w-xl rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-2xl backdrop-blur">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-extrabold uppercase tracking-[0.35em] text-navy-700">Admin Dashboard</p>
+            <h1 class="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">Protected Access</h1>
+            <p id="statusText" class="mt-3 text-sm text-slate-500">
+              Verifying your Firebase session...
+            </p>
+          </div>
+          <div class="flex flex-col items-start gap-3 sm:items-end">
+            <div id="userInfo" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              Checking session...
+            </div>
+            <button
+              id="logoutBtn"
+              type="button"
+              class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-8 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+          <p class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Signed In User</p>
+          <p id="userEmail" class="mt-2 text-lg font-bold text-slate-900">Checking...</p>
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a
+            href="./index.html#admin"
+            class="rounded-xl bg-navy-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-800"
+          >
+            Open Admin Module
+          </a>
+          <a
+            href="./index.html"
+            class="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+          >
+            Open Staff Page
+          </a>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import {
+        auth,
+        getRouteForRole,
+        getSessionUser,
+        getUserProfileByUid,
+        logoutCurrentUser,
+        onAuthStateChanged,
+      } from "./js/auth.js";
+
+      const statusText = document.getElementById("statusText");
+      const userEmail = document.getElementById("userEmail");
+      const userInfo = document.getElementById("userInfo");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const sessionUser = getSessionUser();
+
+      if (!sessionUser?.uid) {
+        window.location.replace("login.html");
+      } else {
+        userInfo.textContent = `${sessionUser.name} (${sessionUser.role})`;
+      }
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        try {
+          const profile = await getUserProfileByUid(user.uid);
+
+          if (profile.role !== "admin") {
+            window.location.href = getRouteForRole(profile.role);
+            return;
+          }
+
+          userEmail.textContent = `${profile.name} (${user.email || "admin"})`;
+          userInfo.textContent = `${profile.name} (${profile.role})`;
+          statusText.textContent = "Your admin session is active. You can continue to the dashboard.";
+        } catch (error) {
+          statusText.textContent = error.message || "Unable to load the admin role.";
+          await logoutCurrentUser();
+          window.location.href = "login.html";
+        }
+      });
+
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await logoutCurrentUser();
+          window.location.href = "login.html";
+        } catch (error) {
+          statusText.textContent = error.message || "Logout failed.";
+        }
+      });
+    </script>
   </body>
 </html>

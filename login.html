@@ -2,14 +2,225 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=./index.html" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Login Redirect</title>
+    <title>Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      window.location.replace("./index.html");
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              navy: {
+                700: "#0b3a64",
+                800: "#082b4d",
+                900: "#061f37",
+              },
+            },
+            boxShadow: {
+              panel: "0 24px 64px rgba(15, 23, 42, 0.14)",
+            },
+          },
+        },
+      };
     </script>
   </head>
-  <body>
-    <p>Redirecting to the portal...</p>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(11,58,100,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.95),_transparent_34%),linear-gradient(180deg,_#f8fafc_0%,_#e9eef5_100%)]"></div>
+
+      <main class="relative w-full max-w-md rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-panel backdrop-blur">
+        <div class="text-center">
+          <p class="text-xs font-extrabold uppercase tracking-[0.35em] text-navy-700">Security Identity Suite</p>
+          <div class="mt-5 inline-flex rounded-full bg-slate-100 p-1 ring-1 ring-slate-200">
+            <button
+              id="adminModeBtn"
+              type="button"
+              class="rounded-full bg-navy-700 px-4 py-2 text-sm font-semibold text-white transition"
+            >
+              Admin
+            </button>
+            <button
+              id="staffModeBtn"
+              type="button"
+              class="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition"
+            >
+              Staff
+            </button>
+          </div>
+          <h1 id="loginTitle" class="mt-4 text-3xl font-extrabold tracking-tight text-slate-950">Admin Login</h1>
+          <p id="loginDescription" class="mt-3 text-sm text-slate-500">
+            Sign in with your Firebase email and password to access the protected admin dashboard.
+          </p>
+        </div>
+
+        <form id="loginForm" class="mt-8 space-y-5" novalidate>
+          <label class="block space-y-2">
+            <span class="text-sm font-semibold text-slate-700">Email</span>
+            <input
+              id="emailInput"
+              type="email"
+              autocomplete="email"
+              placeholder="admin@company.com"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+              required
+            />
+          </label>
+
+          <label class="block space-y-2">
+            <span class="text-sm font-semibold text-slate-700">Password</span>
+            <input
+              id="passwordInput"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter password"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-navy-700 focus:bg-white"
+              required
+            />
+          </label>
+
+          <p id="authMessage" class="hidden rounded-2xl px-4 py-3 text-sm font-medium"></p>
+
+          <button
+            id="loginBtn"
+            type="submit"
+            class="w-full rounded-xl bg-navy-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Login
+          </button>
+        </form>
+
+        <div class="mt-6 text-center">
+          <a href="./index.html" class="text-sm font-semibold text-slate-500 transition hover:text-navy-700">
+            Continue to staff page
+          </a>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import {
+        auth,
+        getRouteForRole,
+        getUserProfileByUid,
+        loginWithEmailPassword,
+        logoutCurrentUser,
+        onAuthStateChanged,
+      } from "./js/auth.js";
+
+      const elements = {
+        adminModeBtn: document.getElementById("adminModeBtn"),
+        staffModeBtn: document.getElementById("staffModeBtn"),
+        title: document.getElementById("loginTitle"),
+        description: document.getElementById("loginDescription"),
+        form: document.getElementById("loginForm"),
+        email: document.getElementById("emailInput"),
+        password: document.getElementById("passwordInput"),
+        button: document.getElementById("loginBtn"),
+        message: document.getElementById("authMessage"),
+      };
+      let selectedRole = "admin";
+
+      function normalizeRole(role) {
+        return role === "field" ? "staff" : role;
+      }
+
+      function showMessage(message, type = "error") {
+        const className =
+          type === "success"
+            ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+            : "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
+
+        elements.message.className = `rounded-2xl px-4 py-3 text-sm font-medium ${className}`;
+        elements.message.textContent = message;
+      }
+
+      function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      }
+
+      function setLoading(isLoading) {
+        elements.button.disabled = isLoading;
+        elements.button.textContent = isLoading ? "Signing In..." : "Login";
+      }
+
+      const params = new URLSearchParams(window.location.search);
+
+      function applyMode(role) {
+        selectedRole = role;
+        const isAdmin = role === "admin";
+
+        elements.adminModeBtn.className = isAdmin
+          ? "rounded-full bg-navy-700 px-4 py-2 text-sm font-semibold text-white transition"
+          : "rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition";
+        elements.staffModeBtn.className = isAdmin
+          ? "rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition"
+          : "rounded-full bg-navy-700 px-4 py-2 text-sm font-semibold text-white transition";
+        elements.title.textContent = isAdmin ? "Admin Login" : "Staff Login";
+        elements.description.textContent = isAdmin
+          ? "Sign in with your Firebase email and password to access the protected admin dashboard."
+          : "Sign in with your Firebase email and password to access the staff ID generation page.";
+      }
+
+      if (params.get("error") === "access-denied") {
+        showMessage("This account is signed in but not allowed to access the admin area.");
+      }
+
+      elements.adminModeBtn.addEventListener("click", () => applyMode("admin"));
+      elements.staffModeBtn.addEventListener("click", () => applyMode("staff"));
+
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          try {
+            const profile = await getUserProfileByUid(user.uid);
+            window.location.replace(getRouteForRole(profile.role));
+          } catch (error) {
+            showMessage(error.message || "User role is missing in Firestore.");
+          }
+        }
+      });
+
+      elements.form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = elements.email.value.trim();
+        const password = elements.password.value;
+
+        if (!email || !password) {
+          showMessage("Email and password are required.");
+          return;
+        }
+
+        if (!isValidEmail(email)) {
+          showMessage("Please enter a valid email address.");
+          return;
+        }
+
+        setLoading(true);
+        elements.message.className = "hidden";
+        elements.message.textContent = "";
+
+        try {
+          const credentials = await loginWithEmailPassword(email, password);
+          const profile = await getUserProfileByUid(credentials.user.uid, { forceRefresh: true });
+
+          if (normalizeRole(profile.role) !== normalizeRole(selectedRole)) {
+            await logoutCurrentUser();
+            showMessage(
+              selectedRole === "admin"
+                ? "This account is not assigned as Admin."
+                : "This account is not assigned as Staff.",
+            );
+            setLoading(false);
+            return;
+          }
+
+          window.location.replace(getRouteForRole(profile.role));
+        } catch (error) {
+          showMessage(error.message || "Login failed. Check your email and password.");
+          setLoading(false);
+        }
+      });
+
+      applyMode("admin");
+    </script>
   </body>
 </html>

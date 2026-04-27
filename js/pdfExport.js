@@ -116,6 +116,27 @@ function waitForImages(container) {
   );
 }
 
+function sanitizeFilenamePart(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function getRecordsPdfFilename(records) {
+  const exportDate = new Date().toISOString().slice(0, 10);
+
+  if (records.length === 1) {
+    const [record] = records;
+    const preferredLabel = sanitizeFilenamePart(record.name) || sanitizeFilenamePart(record.idNumber) || "id-card";
+    return `${preferredLabel}.pdf`;
+  }
+
+  return `id-cards-${records.length}-${exportDate}.pdf`;
+}
+
 export async function exportRecordsToPdf(records, pdfSheetElement) {
   if (!records.length) {
     throw new Error("No records selected for export.");
@@ -133,11 +154,10 @@ export async function exportRecordsToPdf(records, pdfSheetElement) {
       pdfSheetElement.querySelectorAll(".pdf-barcode").forEach((svg) => {
         window.JsBarcode(svg, svg.dataset.value, {
           format: "CODE128",
-          displayValue: true,
-          fontSize: 11,
-          height: 40,
+          displayValue: false,
+          height: 22,
           margin: 0,
-          width: 1.15,
+          width: 0.9,
           background: "#ffffff",
           lineColor: "#0f172a",
         });
@@ -171,9 +191,128 @@ export async function exportRecordsToPdf(records, pdfSheetElement) {
       pdf.addImage(imageData, "PNG", 0, 0, pageWidth, pageHeight);
     }
 
-    pdf.save(`id-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
+    pdf.save(getRecordsPdfFilename(records));
   } finally {
     pdfSheetElement.classList.add("hidden");
     pdfSheetElement.innerHTML = "";
   }
+}
+
+function formatReportDate(dateValue) {
+  if (!dateValue) {
+    return "";
+  }
+
+  return new Date(dateValue).toLocaleDateString("en-GB");
+}
+
+function getRecordStatus(record) {
+  return new Date(record.validUpto) < new Date() ? "Expired" : "Active";
+}
+
+function resolveAutoTable(doc) {
+  if (typeof doc.autoTable === "function") {
+    return doc.autoTable.bind(doc);
+  }
+
+  const jsPdfApiAutoTable = window.jspdf?.jsPDF?.API?.autoTable;
+  if (typeof jsPdfApiAutoTable === "function") {
+    return (...args) => jsPdfApiAutoTable.apply(doc, args);
+  }
+
+  if (typeof window.autoTable === "function") {
+    return (...args) => window.autoTable(doc, ...args);
+  }
+
+  return null;
+}
+
+export function exportReportPdf(records, { reportMonth = "", reportDay = "", reportScopeLabel = "" } = {}) {
+  if (!records.length) {
+    throw new Error("No records available for report export.");
+  }
+
+  if (!window.jspdf?.jsPDF) {
+    throw new Error("Report PDF libraries are not available.");
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+  const autoTable = resolveAutoTable(doc);
+
+  if (!autoTable) {
+    throw new Error("Report PDF table library is not available.");
+  }
+
+  const total = records.length;
+  const active = records.filter((record) => getRecordStatus(record) === "Active").length;
+  const expired = total - active;
+  const generatedOn = new Date().toLocaleDateString("en-GB");
+  const reportScope = reportScopeLabel || (
+    reportDay
+      ? `Report Day: ${formatReportDate(reportDay)}`
+      : reportMonth
+        ? `Report Month: ${formatReportDate(`${reportMonth}-01`)}`
+        : "Report Scope: All Records"
+  );
+
+  const tableData = records.map((record) => [
+    record.name || "",
+    record.idNumber || "",
+    record.designation || "",
+    formatReportDate(record.issueDate),
+    formatReportDate(record.validUpto),
+    record.createdByName || "",
+    getRecordStatus(record),
+  ]);
+
+  doc.setFontSize(16);
+  doc.text("ID Card Generation Report", 14, 15);
+
+  doc.setFontSize(10);
+  doc.text(`Generated on: ${generatedOn}`, 14, 22);
+  doc.text(reportScope, 14, 28);
+
+  doc.text(`Total IDs: ${total}`, 14, 36);
+  doc.text(`Active: ${active} | Expired: ${expired}`, 14, 42);
+
+  autoTable({
+    startY: 48,
+    head: [[
+      "Name",
+      "ID No",
+      "Designation",
+      "Issue Date",
+      "Valid Upto",
+      "Created By",
+      "Status",
+    ]],
+    body: tableData,
+    styles: {
+      fontSize: 8,
+      cellPadding: 2.2,
+      valign: "middle",
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    margin: {
+      top: 14,
+      right: 14,
+      bottom: 14,
+      left: 14,
+    },
+  });
+
+  const suffix = reportDay || reportMonth || new Date().toISOString().slice(0, 10);
+  doc.save(`id-report-${suffix}.pdf`);
 }

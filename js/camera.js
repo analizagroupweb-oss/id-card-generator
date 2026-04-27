@@ -1,5 +1,22 @@
 export function createCameraController({ videoElement, canvasElement, onStatusChange, onCapture }) {
   let stream = null;
+  let preferredFacingMode = "user";
+  let activeFacingMode = null;
+
+  function getFacingLabel(facingMode) {
+    return facingMode === "environment" ? "Back" : "Front";
+  }
+
+  function updateVideoPreviewOrientation() {
+    const isUserFacing = activeFacingMode === "user";
+    videoElement.style.transform = isUserFacing ? "scaleX(-1)" : "scaleX(1)";
+    videoElement.style.transformOrigin = "center";
+  }
+
+  function updateStatus(baseStatus) {
+    const facingSuffix = activeFacingMode ? ` (${getFacingLabel(activeFacingMode)})` : "";
+    onStatusChange(`${baseStatus}${facingSuffix}`);
+  }
 
   function waitForVideoReady() {
     return new Promise((resolve, reject) => {
@@ -79,54 +96,104 @@ export function createCameraController({ videoElement, canvasElement, onStatusCh
     return null;
   }
 
+  async function openStream(facingMode) {
+    const primaryVideoConstraints =
+      facingMode === "user"
+        ? [
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: { exact: "user" },
+            },
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            },
+          ]
+        : [
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: { exact: "environment" },
+            },
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "environment",
+            },
+          ];
+
+    const fallbackVideoConstraints =
+      facingMode === "user"
+        ? [
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "environment",
+            },
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            true,
+          ]
+        : [
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            },
+            {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            true,
+          ];
+
+    const constraintsList = [...primaryVideoConstraints, ...fallbackVideoConstraints].map((video) => ({
+      video,
+      audio: false,
+    }));
+
+    stream = await tryGetUserMedia(constraintsList);
+    activeFacingMode =
+      stream.getVideoTracks()[0]?.getSettings?.().facingMode || facingMode;
+    videoElement.srcObject = stream;
+    updateVideoPreviewOrientation();
+    await waitForVideoReady();
+    updateStatus("Ready");
+
+    return {
+      ok: true,
+      facingMode: activeFacingMode,
+      facingLabel: getFacingLabel(activeFacingMode),
+    };
+  }
+
   async function start() {
     if (stream) {
-      onStatusChange("Ready");
-      return { ok: true };
+      updateStatus("Ready");
+      return {
+        ok: true,
+        facingMode: activeFacingMode,
+        facingLabel: getFacingLabel(activeFacingMode || preferredFacingMode),
+      };
     }
 
     const environmentIssue = getEnvironmentIssue();
 
     if (environmentIssue) {
-      onStatusChange("Unavailable");
+      updateStatus("Unavailable");
       return { ok: false, ...environmentIssue };
     }
 
     try {
-      stream = await tryGetUserMedia([
-        {
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: "user",
-          },
-          audio: false,
-        },
-        {
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        },
-        {
-          video: true,
-          audio: false,
-        },
-      ]);
-
-      videoElement.srcObject = stream;
-      await waitForVideoReady();
-      onStatusChange("Ready");
-      return { ok: true };
+      return await openStream(preferredFacingMode);
     } catch (error) {
       console.error("Camera start failed:", error);
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-        stream = null;
-        videoElement.srcObject = null;
-      }
-      onStatusChange("Blocked");
+      stop();
+      updateStatus("Blocked");
 
       if (error?.name === "NotAllowedError") {
         return {
@@ -183,7 +250,17 @@ export function createCameraController({ videoElement, canvasElement, onStatusCh
     canvasElement.width = width;
     canvasElement.height = height;
     const context = canvasElement.getContext("2d");
+
+    if (!context) {
+      return null;
+    }
+
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, width, height);
     context.drawImage(videoElement, 0, 0, width, height);
+    context.restore();
+
     const dataUrl = canvasElement.toDataURL("image/png");
     onCapture(dataUrl);
     return dataUrl;
@@ -191,21 +268,57 @@ export function createCameraController({ videoElement, canvasElement, onStatusCh
 
   function stop() {
     if (!stream) {
+      activeFacingMode = null;
+      updateVideoPreviewOrientation();
       return;
     }
 
     stream.getTracks().forEach((track) => track.stop());
     videoElement.srcObject = null;
     stream = null;
-    onStatusChange("Idle");
+    activeFacingMode = null;
+    updateVideoPreviewOrientation();
+    updateStatus("Idle");
+  }
+
+  async function flipCamera() {
+    const nextFacingMode = preferredFacingMode === "user" ? "environment" : "user";
+    preferredFacingMode = nextFacingMode;
+
+    if (!stream) {
+      updateStatus(`Idle - ${getFacingLabel(preferredFacingMode)} Selected`);
+      return {
+        ok: true,
+        facingMode: preferredFacingMode,
+        facingLabel: getFacingLabel(preferredFacingMode),
+      };
+    }
+
+    stop();
+
+    try {
+      return await openStream(preferredFacingMode);
+    } catch (error) {
+      console.error("Camera flip failed:", error);
+      stop();
+      updateStatus("Blocked");
+
+      return {
+        ok: false,
+        message: `Unable to switch camera${error?.name ? ` (${error.name})` : ""}.`,
+      };
+    }
   }
 
   window.addEventListener("beforeunload", stop);
+
+  updateStatus("Idle");
 
   return {
     start,
     capture,
     stop,
+    flipCamera,
     getEnvironmentIssue,
   };
 }

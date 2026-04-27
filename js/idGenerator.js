@@ -1,10 +1,24 @@
+import {
+  db,
+  storage,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  ref,
+  uploadString,
+  getDownloadURL,
+  getSessionUser,
+} from "./auth.js";
+
 const STORAGE_KEYS = {
-  ids: "id-card-records",
   counter: "idCounter",
   startNumber: "id-card-start-number",
   prefix: "id-card-prefix",
   signature: "id-card-signature",
 };
+const FIREBASE_TIMEOUT_MS = 8000;
 
 export function createIdGenerator({
   formElements,
@@ -16,25 +30,12 @@ export function createIdGenerator({
   onSignatureChange,
 }) {
   const state = {
-    records: loadRecords(),
+    records: [],
     capturedPhoto: "",
     signature: loadSignature(),
     selectedPreviewSide: "front",
+    recordsLoaded: false,
   };
-
-  function loadRecords() {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ids);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Failed to parse ID records:", error);
-      return [];
-    }
-  }
-
-  function saveRecords() {
-    localStorage.setItem(STORAGE_KEYS.ids, JSON.stringify(state.records));
-  }
 
   function getStoredPrefix() {
     const prefix = (localStorage.getItem(STORAGE_KEYS.prefix) || "SEC").trim().toUpperCase();
@@ -151,6 +152,17 @@ export function createIdGenerator({
     return `${prefix}-${formatSequence(sequence)}`;
   }
 
+  function withTimeout(promise, timeoutMessage) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        window.setTimeout(() => {
+          reject(new Error(timeoutMessage));
+        }, FIREBASE_TIMEOUT_MS);
+      }),
+    ]);
+  }
+
   function getUsedIdSet() {
     return new Set(state.records.map((record) => record.idNumber));
   }
@@ -203,11 +215,10 @@ export function createIdGenerator({
 
     window.JsBarcode(previewElements.barcodeFront, idNumber, {
       format: "CODE128",
-      displayValue: true,
-      fontSize: 11,
-      height: 42,
+      displayValue: false,
+      height: 22,
       margin: 0,
-      width: 1.2,
+      width: 0.9,
       background: "#ffffff",
       lineColor: "#0f172a",
     });
@@ -303,8 +314,139 @@ export function createIdGenerator({
     return true;
   }
 
-  function generateRecord() {
+  function sortRecordsByCreatedAtDesc(records) {
+    return [...records].sort((left, right) => {
+      const leftTime = new Date(left.createdAt || 0).getTime();
+      const rightTime = new Date(right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    });
+  }
+
+  function normalizeRecord(docId, source) {
+    const createdAtValue = source.createdAt?.toDate ? source.createdAt.toDate() : source.createdAt;
+    const createdAt = createdAtValue ? new Date(createdAtValue).toISOString() : new Date().toISOString();
+
+    return {
+      docId,
+      idNumber: source.idNumber || "--",
+      name: source.name || "--",
+      designation: source.designation || "--",
+      dob: source.dob || "",
+      contactNumber: source.contactNumber || source.contact || "--",
+      bloodGroup: source.bloodGroup || "--",
+      issueDate: source.issueDate || "",
+      validUpto: source.validUpto || "",
+      photo: source.photoURL || "",
+      photoURL: source.photoURL || "",
+      createdBy: source.createdBy || "",
+      createdByName: source.createdByName || "N/A",
+      signature: state.signature,
+      createdAt,
+    };
+  }
+
+  async function fetchRecords() {
+    let querySnapshot;
+
+    try {
+      const recordsQuery = query(collection(db, "idCards"), orderBy("createdAt", "desc"));
+      querySnapshot = await withTimeout(
+        getDocs(recordsQuery),
+        "Timed out while loading Firestore records.",
+      );
+    } catch (error) {
+      console.warn("Ordered Firestore fetch failed, retrying without orderBy:", error);
+      querySnapshot = await withTimeout(
+        getDocs(collection(db, "idCards")),
+        "Timed out while loading Firestore records.",
+      );
+    }
+
+    state.records = sortRecordsByCreatedAtDesc(
+      querySnapshot.docs.map((doc) => normalizeRecord(doc.id, doc.data())),
+    );
+    state.recordsLoaded = true;
+    onRecordsChange([...state.records]);
+    updatePreview();
+
+    return [...state.records];
+  }
+
+  async function uploadCapturedPhoto(idNumber) {
+    const storageRef = ref(storage, `idPhotos/${idNumber}.png`);
+
+    await withTimeout(
+      uploadString(storageRef, state.capturedPhoto, "data_url"),
+      "Timed out while uploading the captured photo.",
+    );
+    return withTimeout(
+      getDownloadURL(storageRef),
+      "Timed out while reading the uploaded photo URL.",
+    );
+  }
+
+  function upsertRecord(nextRecord) {
+    const existingIndex = state.records.findIndex((record) => record.idNumber === nextRecord.idNumber);
+
+    if (existingIndex >= 0) {
+      state.records.splice(existingIndex, 1, nextRecord);
+    } else {
+      state.records.unshift(nextRecord);
+    }
+
+    state.records = sortRecordsByCreatedAtDesc(state.records);
+    onRecordsChange([...state.records]);
+  }
+
+  async function persistRecordToFirebase(localRecord, payload) {
+    let persistedPhotoURL = payload.photoURL;
+
+    try {
+      persistedPhotoURL = await uploadCapturedPhoto(localRecord.idNumber);
+    } catch (error) {
+      console.error("Photo upload failed:", error);
+      showToast("Photo upload failed, continuing with local image data.", "info");
+    }
+
+    try {
+      const docRef = await withTimeout(
+        addDoc(collection(db, "idCards"), {
+          ...payload,
+          photoURL: persistedPhotoURL,
+        }),
+        "Timed out while saving the ID to Firestore.",
+      );
+
+      const persistedRecord = {
+        ...localRecord,
+        docId: docRef.id,
+        photo: persistedPhotoURL,
+        photoURL: persistedPhotoURL,
+        localOnly: false,
+      };
+
+      upsertRecord(persistedRecord);
+      showToast(`ID generated successfully for ${persistedRecord.name}.`, "success");
+    } catch (error) {
+      console.error("Failed to save ID record:", error);
+      if (typeof window !== "undefined" && typeof window.alert === "function") {
+        window.alert(error.message || "Saving to Firestore failed. The ID was created only in this session.");
+      }
+      showToast("ID created locally, but Firestore save failed.", "info");
+    }
+  }
+
+  async function generateRecord() {
     if (!validateForm()) {
+      return null;
+    }
+
+    const sessionUser = getSessionUser();
+
+    if (!sessionUser?.uid) {
+      if (typeof window !== "undefined") {
+        window.location.replace("./login.html");
+      }
       return null;
     }
 
@@ -313,34 +455,40 @@ export function createIdGenerator({
 
     if (state.records.some((record) => record.idNumber === idNumber)) {
       showToast("A duplicate ID number was detected. Please try again.", "error");
-      setLastUsedNumber(nextId.sequence);
       updatePreview();
       return null;
     }
 
     const issueDate = getTodayIso();
     const validUpto = getValidUpto(issueDate);
-    const record = {
-      idNumber,
+    const payload = {
       name: formElements.nameInput.value.trim(),
       designation: formElements.designationInput.value.trim(),
       dob: formElements.dobInput.value,
+      contact: formElements.contactInput.value.trim(),
       contactNumber: formElements.contactInput.value.trim(),
       bloodGroup: formElements.bloodGroupInput.value.trim().toUpperCase(),
+      idNumber,
       issueDate,
       validUpto,
-      photo: state.capturedPhoto,
-      signature: state.signature,
-      createdAt: new Date().toISOString(),
+      photoURL: state.capturedPhoto,
+      createdBy: sessionUser.uid,
+      createdByName: sessionUser.name || "User",
+      createdAt: new Date(),
     };
 
-    state.records.unshift(record);
+    const localRecord = normalizeRecord(`local-${Date.now()}`, payload);
+    localRecord.signature = state.signature;
+    localRecord.localOnly = true;
+
     setLastUsedNumber(nextId.sequence);
-    saveRecords();
+    upsertRecord(localRecord);
     updatePreview();
-    onRecordsChange([...state.records]);
-    showToast(`ID generated successfully for ${record.name}.`, "success");
-    return record;
+    showToast(`ID created for ${localRecord.name}. Syncing to Firebase...`, "info");
+
+    void persistRecordToFirebase(localRecord, payload);
+
+    return localRecord;
   }
 
   function getRecords() {
@@ -376,11 +524,19 @@ export function createIdGenerator({
     });
   }
 
-  function initialize() {
+  async function initialize() {
     bindFormEvents();
     updatePreview();
-    onRecordsChange([...state.records]);
     onSignatureChange(state.signature);
+
+    try {
+      await fetchRecords();
+    } catch (error) {
+      state.recordsLoaded = true;
+      console.error("Failed to load Firestore records:", error);
+      showToast(error.message || "Unable to load ID records from Firestore.", "error");
+      onRecordsChange([...state.records]);
+    }
   }
 
   return {
@@ -395,5 +551,6 @@ export function createIdGenerator({
     formatDisplayDate,
     getTodayIso,
     initialize,
+    fetchRecords,
   };
 }
